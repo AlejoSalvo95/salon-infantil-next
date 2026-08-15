@@ -1,0 +1,4 @@
+import { money, packages, type PackageName } from "@/lib/data";
+export function Packages({ onSelect }: { onSelect: (name: PackageName) => void }) {
+  return <section className="packages section" id="paquetes"><div className="section-head"><div><p className="kicker coral">Elegí cómo celebrar</p><h2>Una fiesta a<br/><em>tu medida.</em></h2></div><p>Todos los paquetes incluyen el salón en exclusividad, equipo de animación y limpieza. Vos solo traé las ganas.</p></div><div className="package-grid">{packages.map(pkg=><article className={`package ${pkg.popular?"popular":""}`} key={pkg.name}>{pkg.popular&&<div className="badge">El favorito</div>}<div className="package-top"><span>{pkg.eyebrow}</span><h3>{pkg.name}</h3><p className="price"><small>desde</small> {money(pkg.price)}</p></div><ul>{pkg.features.map(x=><li key={x}>{x}</li>)}</ul><button onClick={()=>onSelect(pkg.name)}>Elegir {pkg.name} <span>→</span></button></article>)}</div></section>;
+}

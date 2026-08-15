@@ -1,0 +1,4 @@
+import Image from "next/image";
+export function Hero({ onBook }: { onBook: () => void }) {
+  return <><section className="hero" id="inicio"><Image src="/salon-hero.png" alt="Salón infantil Nube decorado para una fiesta" fill priority sizes="100vw"/><div className="hero-shade"/><div className="hero-copy"><p className="kicker">Salón de fiestas infantiles · Montevideo</p><h1>Su día favorito<br/><em>empieza acá.</em></h1><p>Un espacio diseñado para jugar sin límites y festejar sin estrés. Nosotros nos ocupamos de todo.</p><div className="hero-actions"><button className="primary" onClick={onBook}>Quiero reservar <span>→</span></button><a href="#espacio">Conocé el espacio <span>↓</span></a></div></div><div className="hero-stamp"><strong>+420</strong><span>cumples<br/>inolvidables</span></div></section><div className="trust"><span>Todo incluido</span><i/><span>Hasta 35 peques</span><i/><span>3 horas de fiesta</span><i/><span>Animación profesional</span></div></>;
+}
