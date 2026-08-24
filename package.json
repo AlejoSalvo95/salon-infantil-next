@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "pnpm import:gardening data/imports/jardineria.csv planta-001",
     "dev": "next dev",
+    "refresh": "pnpm import:gardening data/imports/jardineria.csv planta-001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
