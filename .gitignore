@@ -5,3 +5,5 @@ out
 !.env.example
 npm-debug.log*
 pnpm-debug.log*
+data/imports/
+.local-build/
