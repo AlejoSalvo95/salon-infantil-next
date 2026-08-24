@@ -94,7 +94,7 @@ export function parseGardeningCsv(input: string): GardeningCsvResult {
       const amount = finiteNumber(first);
       if (amount === null || !lastMeasurementDate) {
         issues.push({ rowNumber, rawValue, message: "Evento de agua sin cantidad o fecha asociada válida." });
-      } else waterEvents.push({ measuredAt: lastMeasurementDate, amount, sourceRow: rowNumber });
+      } else if (amount > 0) waterEvents.push({ measuredAt: lastMeasurementDate, amount, sourceRow: rowNumber });
       section = null;
       return;
     }

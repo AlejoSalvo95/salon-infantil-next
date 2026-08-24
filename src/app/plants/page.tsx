@@ -17,16 +17,17 @@ export type PlantEvent = { plantId: string; date: string; value: number };
 async function loadPlantData() {
   const db = createSupabaseAdminClient();
   const [measurements, water, nutrients] = await Promise.all([
-    db.from("gardening_measurements").select("plant_id,measured_at,total_height").order("measured_at").limit(5000),
-    db.from("gardening_water_events").select("plant_id,measured_at,amount").order("measured_at").limit(5000),
-    db.from("gardening_nutrient_events").select("plant_id,sampled_at,dose").order("sampled_at").limit(5000),
+    db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000),
+    db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000),
+    db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
   ]);
   const error = measurements.error ?? water.error ?? nutrients.error;
   if (error) throw new Error(error.message);
+  const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
   return {
     measurements: (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height })),
-    waterEvents: (water.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount })),
-    nutrientEvents: (nutrients.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose })),
+    waterEvents: (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount })),
+    nutrientEvents: (nutrients.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose })),
   };
 }
 
