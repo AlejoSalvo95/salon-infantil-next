@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isPlantsPasswordValid, PLANTS_COOKIE, plantsSessionToken } from "@/lib/plants-auth";
+import { isPlantsPasswordValid, PLANTS_COOKIE, PLANTS_SESSION_SECONDS, plantsSessionToken } from "@/lib/plants-auth";
 
 export async function POST(request: Request) {
   const form = await request.formData();
@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/plants",
-    maxAge: 60 * 60 * 8,
+    maxAge: PLANTS_SESSION_SECONDS,
   });
   return response;
 }
