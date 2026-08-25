@@ -29,13 +29,13 @@ export function useFlores(periodo = "max") {
         const datos = await respuesta.json();
 
         if (!respuesta.ok || datos.error) {
-          throw new Error(datos.error || "No se pudieron cargar las flores");
+          throw new Error(datos.error || "Flower data could not be loaded");
         }
 
         setHistorial(datos.historial || []);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setError(error instanceof Error ? error.message : "Error al cargar las flores");
+        setError(error instanceof Error ? error.message : "Flower data could not be loaded");
       } finally {
         if (!controller.signal.aborted) setCargando(false);
       }

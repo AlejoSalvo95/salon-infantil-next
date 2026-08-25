@@ -8,7 +8,7 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 export async function GET(request: Request) {
   try {
     if (!isGardeningApiAuthorized(request)) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -16,10 +16,10 @@ export async function GET(request: Request) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     if (!plantId || plantId.length > 100 || (from && !datePattern.test(from)) || (to && !datePattern.test(to))) {
-      return NextResponse.json({ error: "Parámetros de consulta inválidos." }, { status: 400 });
+      return NextResponse.json({ error: "Invalid query parameters." }, { status: 400 });
     }
     if (from && to && from > to) {
-      return NextResponse.json({ error: "La fecha 'from' no puede ser posterior a 'to'." }, { status: 400 });
+      return NextResponse.json({ error: "The 'from' date cannot be later than 'to'." }, { status: 400 });
     }
 
     let query = createSupabaseAdminClient()
@@ -38,6 +38,6 @@ export async function GET(request: Request) {
     })));
   } catch (error) {
     console.error("gardening_measurements_error", error);
-    return NextResponse.json({ error: "No pudimos obtener las mediciones." }, { status: 500 });
+    return NextResponse.json({ error: "We could not retrieve the measurements." }, { status: 500 });
   }
 }

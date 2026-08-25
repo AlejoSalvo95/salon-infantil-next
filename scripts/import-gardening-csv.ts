@@ -36,15 +36,15 @@ async function main() {
   const plantId = String(plantArgument ?? "").trim();
 
   if (!fileArgument || !plantId || plantId.length > 100) {
-    throw new Error("Uso: pnpm import:gardening -- data/imports/archivo.csv PLANTA_ID");
+    throw new Error("Usage: pnpm import:gardening -- data/imports/file.csv PLANT_ID");
   }
 
   const filePath = path.resolve(process.cwd(), fileArgument);
-  if (!filePath.toLowerCase().endsWith(".csv")) throw new Error("El archivo debe tener extensión .csv.");
+  if (!filePath.toLowerCase().endsWith(".csv")) throw new Error("The file must have a .csv extension.");
 
   const metadata = await stat(filePath);
   if (!metadata.isFile() || metadata.size === 0 || metadata.size > MAX_FILE_SIZE) {
-    throw new Error("El CSV debe ser un archivo de entre 1 byte y 10 MB.");
+    throw new Error("The CSV file must be between 1 byte and 10 MB.");
   }
 
   const parsed = parseGardeningCsv(await readFile(filePath, "utf8"));

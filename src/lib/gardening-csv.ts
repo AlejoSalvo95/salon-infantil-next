@@ -37,7 +37,7 @@ function parseCsvRows(input: string): string[][] {
     } else value += character;
   }
 
-  if (quoted) throw new Error("El CSV contiene una comilla sin cerrar.");
+  if (quoted) throw new Error("The CSV contains an unclosed quotation mark.");
   row.push(value.trim());
   if (row.some((cell) => cell !== "")) rows.push(row);
   return rows;
@@ -80,7 +80,7 @@ export function parseGardeningCsv(input: string): GardeningCsvResult {
       const measuredAt = parseDate(first);
       const totalHeight = finiteNumber(row[1] ?? "");
       if (!measuredAt || totalHeight === null) {
-        issues.push({ rowNumber, rawValue, message: "Medición con fecha o valores inválidos." });
+        issues.push({ rowNumber, rawValue, message: "Measurement with an invalid date or values." });
         return;
       }
       measurements.set(measuredAt, {
@@ -93,7 +93,7 @@ export function parseGardeningCsv(input: string): GardeningCsvResult {
     if (section === "water") {
       const amount = finiteNumber(first);
       if (amount === null || !lastMeasurementDate) {
-        issues.push({ rowNumber, rawValue, message: "Evento de agua sin cantidad o fecha asociada válida." });
+        issues.push({ rowNumber, rawValue, message: "Watering event without a valid amount or date." });
       } else if (amount > 0) waterEvents.push({ measuredAt: lastMeasurementDate, amount, sourceRow: rowNumber });
       section = null;
       return;
@@ -103,12 +103,12 @@ export function parseGardeningCsv(input: string): GardeningCsvResult {
       const dose = finiteNumber(first);
       const sampledAt = parseDate(row[1] ?? "");
       if (dose === null || !sampledAt) {
-        issues.push({ rowNumber, rawValue, message: "Evento de nutrientes con dosis o fecha inválida." });
+        issues.push({ rowNumber, rawValue, message: "Nutrient event with an invalid dose or date." });
       } else nutrientEvents.push({ sampledAt, dose, sourceRow: rowNumber });
       return;
     }
 
-    issues.push({ rowNumber, rawValue, message: "Fila fuera de una sección reconocida." });
+    issues.push({ rowNumber, rawValue, message: "Row is outside a recognized section." });
   });
 
   return {

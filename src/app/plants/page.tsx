@@ -6,8 +6,8 @@ import { PlantsDashboard } from "./plants-dashboard";
 import "./plants.css";
 
 export const metadata: Metadata = {
-  title: "Plantas · Nube",
-  description: "Seguimiento privado de crecimiento y cuidados de las plantas.",
+  title: "Plants · Nube",
+  description: "Private plant growth and care tracking.",
 };
 export const dynamic = "force-dynamic";
 
@@ -15,20 +15,27 @@ export type PlantMeasurement = { plantId: string; date: string; totalHeight: num
 export type PlantEvent = { plantId: string; date: string; value: number };
 
 async function loadPlantData() {
-  const db = createSupabaseAdminClient();
-  const [measurements, water, nutrients] = await Promise.all([
-    db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000),
-    db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000),
-    db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
-  ]);
-  const error = measurements.error ?? water.error ?? nutrients.error;
-  if (error) throw new Error(error.message);
-  const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
-  return {
-    measurements: (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height })),
-    waterEvents: (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount })),
-    nutrientEvents: (nutrients.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose })),
-  };
+  for (let intento = 0; intento < 3; intento++) {
+    const db = createSupabaseAdminClient();
+    const [measurements, water, nutrients] = await Promise.all([
+      db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000),
+      db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000),
+      db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
+    ]);
+    const error = measurements.error ?? water.error ?? nutrients.error;
+    if (error?.message.includes("JWT issued at future") && intento < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 500 * (intento + 1)));
+      continue;
+    }
+    if (error) throw new Error(error.message);
+    const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
+    return {
+      measurements: (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height })),
+      waterEvents: (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount })),
+      nutrientEvents: (nutrients.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose })),
+    };
+  }
+  throw new Error("Plant data could not be loaded.");
 }
 
 export default async function PlantsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -36,7 +43,7 @@ export default async function PlantsPage({ searchParams }: { searchParams: Promi
   const authenticated = isPlantsSessionValid(cookieStore.get(PLANTS_COOKIE)?.value);
   if (!authenticated) {
     const { error } = await searchParams;
-    return <main className="plants-login"><a className="plants-logo" href="/">☁ nube</a><section><p className="plants-kicker">Área privada</p><h1>Observá cómo<br/><em>crecen.</em></h1><p>Ingresá la clave de jardinería para consultar las mediciones.</p><form action="/api/plants/login" method="post"><label htmlFor="password">Clave de acceso</label><input id="password" name="password" type="password" autoComplete="current-password" required autoFocus/>{error && <span role="alert">La clave no es correcta.</span>}<button type="submit">Entrar al seguimiento <span>→</span></button></form></section><aside aria-hidden="true"><span>✿</span></aside></main>;
+    return <main className="plants-login"><a className="plants-logo" href="/">☁ nube</a><section><p className="plants-kicker">Private garden</p><h1>Watch them<br/><em>grow.</em></h1><p>Enter the garden key to view plant measurements.</p><form action="/api/plants/login" method="post"><label htmlFor="password">Garden access key</label><input id="password" name="password" type="password" autoComplete="current-password" required autoFocus/>{error && <span role="alert">The garden key is incorrect.</span>}<button type="submit">Open plant tracker <span>→</span></button></form></section><aside aria-hidden="true"><span>✿</span></aside></main>;
   }
   const data = await loadPlantData();
   return <PlantsDashboard {...data} />;

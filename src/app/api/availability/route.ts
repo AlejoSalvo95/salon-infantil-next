@@ -12,6 +12,6 @@ export async function GET() {
     return NextResponse.json({ slots: data });
   } catch (error) {
     console.error("availability_error", error);
-    return NextResponse.json({ error: "No pudimos consultar las fechas." }, { status: 500 });
+    return NextResponse.json({ error: "We could not retrieve the available dates." }, { status: 500 });
   }
 }

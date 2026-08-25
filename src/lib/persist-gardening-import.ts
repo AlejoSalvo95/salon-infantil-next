@@ -7,7 +7,7 @@ function getSupabaseAdminConfig() {
   const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
     throw new Error(
-      "Supabase Admin no está configurado. Definí SUPABASE_URL y SUPABASE_SECRET_KEY en .env.local.",
+      "Supabase Admin is not configured. Set SUPABASE_URL and SUPABASE_SECRET_KEY in .env.local.",
     );
   }
   return { url, key };
@@ -56,10 +56,10 @@ export async function persistGardeningImport(
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Supabase rechazó la importación (${response.status}): ${details}`);
+    throw new Error(`Supabase rejected the import (${response.status}): ${details}`);
   }
 
   const importId: unknown = await response.json();
-  if (typeof importId !== "string") throw new Error("Supabase no devolvió el ID de la importación.");
+  if (typeof importId !== "string") throw new Error("Supabase did not return the import ID.");
   return importId;
 }

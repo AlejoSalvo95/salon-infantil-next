@@ -1,9 +1,9 @@
--- Los valores iguales o menores a cero no representan un depósito real.
+-- Values less than or equal to zero do not represent a real watering deposit.
 delete from public.gardening_water_events
 where amount <= 0;
 
--- Conserva el depósito importado más recientemente cuando una planta y fecha
--- ya aparecen varias veces por reimportaciones anteriores.
+-- Keep the most recently imported deposit when a plant and date
+-- already appear multiple times because of previous reimports.
 with duplicates as (
   select id,
     row_number() over (

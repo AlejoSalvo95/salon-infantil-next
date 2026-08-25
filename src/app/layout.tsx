@@ -6,10 +6,10 @@ const sans = DM_Sans({ subsets: ["latin"], variable: "--font-sans" });
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display" });
 
 export const metadata: Metadata = {
-  title: "Nube · Fiestas para recordar",
-  description: "Salón de fiestas infantiles en Montevideo. Un espacio diseñado para jugar y celebrar sin estrés."
+  title: "Nube · A place to grow",
+  description: "A warm Montevideo garden studio for growing, learning, and celebrating nature."
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="es"><body className={`${sans.variable} ${display.variable}`}>{children}</body></html>;
+  return <html lang="en"><body className={`${sans.variable} ${display.variable}`}>{children}</body></html>;
 }

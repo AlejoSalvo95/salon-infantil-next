@@ -13,7 +13,7 @@ type RegistroFlores = {
 
 export async function GET(request: NextRequest) {
   if (!isPlantsSessionValid(request.cookies.get(PLANTS_COOKIE)?.value)) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const periodo = request.nextUrl.searchParams.get("periodo") || "max";
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
   if (!baseUrl) {
     return NextResponse.json(
-      { error: "Falta configurar FLORES_API_BASE_URL" },
+      { error: "FLORES_API_BASE_URL is not configured" },
       { status: 500 },
     );
   }
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     if (!respuesta.ok) {
       return NextResponse.json(
-        { error: "No se pudieron obtener los datos de flores" },
+        { error: "Flower market data could not be retrieved" },
         { status: respuesta.status },
       );
     }
@@ -78,22 +78,22 @@ export async function GET(request: NextRequest) {
       }];
     });
 
-    const porFecha = new Map<string, RegistroFlores>(historialCsv.map((item) => [item.fecha, item]));
-    historialApi.forEach((item) => porFecha.set(item.fecha, item));
-    const primeraFechaCsv = historialCsv.map((item) => item.fecha).sort()[0];
-    const combinado = [...porFecha.values()]
-      .filter((item) => !primeraFechaCsv || item.fecha >= primeraFechaCsv)
+    const porDate = new Map<string, RegistroFlores>(historialCsv.map((item) => [item.fecha, item]));
+    historialApi.forEach((item) => porDate.set(item.fecha, item));
+    const primeraDateCsv = historialCsv.map((item) => item.fecha).sort()[0];
+    const combinado = [...porDate.values()]
+      .filter((item) => !primeraDateCsv || item.fecha >= primeraDateCsv)
       .sort((a, b) => a.fecha.localeCompare(b.fecha));
     const diasPorRango: Record<string, number> = { "7d": 7, "1mo": 31, "2mo": 62, "6mo": 186, "1y": 366 };
     const dias = diasPorRango[periodo];
-    const ultimaFecha = combinado.at(-1)?.fecha;
-    const limite = dias && ultimaFecha ? new Date(`${ultimaFecha}T00:00:00Z`).getTime() - dias * 86400000 : 0;
+    const ultimaDate = combinado.at(-1)?.fecha;
+    const limite = dias && ultimaDate ? new Date(`${ultimaDate}T00:00:00Z`).getTime() - dias * 86400000 : 0;
     const historial = limite ? combinado.filter((item) => new Date(`${item.fecha}T00:00:00Z`).getTime() >= limite) : combinado;
 
     return NextResponse.json({ historial });
   } catch {
     return NextResponse.json(
-      { error: "Error al cargar los datos de flores" },
+      { error: "Flower market data could not be loaded" },
       { status: 500 },
     );
   }

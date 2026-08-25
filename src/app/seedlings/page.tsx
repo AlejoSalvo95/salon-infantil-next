@@ -7,8 +7,8 @@ import "../plantines/plantines.css";
 import "../plants/plants.css";
 
 export const metadata: Metadata = {
-  title: "Estimación de plantines · Nube",
-  description: "Calculadoras de plantines disponibles y proyección por ciclo.",
+  title: "Seedling Estimates · Nube",
+  description: "Seedling availability calculators and cycle projections.",
 };
 export const dynamic = "force-dynamic";
 

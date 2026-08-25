@@ -7,8 +7,8 @@ import "./flores.css";
 import "../plants/plants.css";
 
 export const metadata: Metadata = {
-  title: "Flores · Nube",
-  description: "Historial de precios y cantidad de velas de FLORES.",
+  title: "Flowers · Nube",
+  description: "FLORES price history and daily candle count.",
 };
 
 export const dynamic = "force-dynamic";
