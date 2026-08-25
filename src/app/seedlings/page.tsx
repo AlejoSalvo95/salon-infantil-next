@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ProtectedAreaLogin } from "@/components/ProtectedAreaLogin";
 import { isPlantsSessionValid, PLANTS_COOKIE } from "@/lib/plants-auth";
-import { SeedlingCalculator } from "../plantines/seedling-calculator";
-import "../plantines/plantines.css";
+import { SeedlingCalculator } from "./seedling-calculator";
+import "./seedlings.css";
 import "../plants/plants.css";
 
 export const metadata: Metadata = {
