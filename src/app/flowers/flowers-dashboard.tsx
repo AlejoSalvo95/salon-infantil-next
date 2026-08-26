@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFlowers } from "./use-flowers";
 import type { FlowerRecord } from "./use-flowers";
+import { PrivateAreaNav } from "@/components/PrivateAreaNav";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -43,7 +44,7 @@ export function FlowersDashboard() {
     <main className="flowers-page">
       <header className="flowers-header">
         <a className="flowers-logo" href="/">☁ nube</a>
-        <a href="/plants">Botanical tracking →</a>
+        <PrivateAreaNav current="flowers"/>
       </header>
 
       <section className="flowers-intro">

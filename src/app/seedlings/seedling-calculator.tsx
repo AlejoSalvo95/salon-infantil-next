@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { PrivateAreaNav } from "@/components/PrivateAreaNav";
 
 function currentMonths() {
   const now = new Date();
@@ -34,7 +35,7 @@ export function SeedlingCalculator() {
     setResult(estimateSeedlings(numericBase, nextMonths));
   }
 
-  return <main className="seedlings-page"><header className="seedlings-header"><a className="seedlings-logo" href="/"><span>☁</span> nube</a><a href="/">Back to home</a></header><section className="seedlings-shell"><div className="seedlings-copy"><p className="seedlings-kicker">Seedling planning tool</p><h1>Estimate your<br /><em>seedlings.</em></h1><p>Enter the starting amount to estimate how many seedlings are available in the current growing cycle.</p><div className="cycle"><span>Current growing cycle</span><strong>{months}</strong><small>months since February 2024</small></div></div><form className="seedlings-calculator" onSubmit={calculate}><label htmlFor="capitalReal">Seedling count <span>(base)</span></label><input id="capitalReal" name="capitalReal" type="number" min="0" step="1000" value={base} onChange={(event) => setBase(event.target.value)} inputMode="numeric" /><button type="submit">Estimate availability <span>→</span></button><div className="seedlings-result" aria-live="polite"><span>Estimated availability</span><strong>{result.toLocaleString("en-US")}</strong><small>seedlings</small></div><p className="seedlings-note">The estimate applies the growth model and rounding defined for this cycle.</p></form></section><CycleCalculator /></main>;
+  return <main className="seedlings-page"><header className="seedlings-header"><a className="seedlings-logo" href="/"><span>☁</span> nube</a><PrivateAreaNav current="seedlings"/></header><section className="seedlings-shell"><div className="seedlings-copy"><p className="seedlings-kicker">Seedling planning tool</p><h1>Estimate your<br /><em>seedlings.</em></h1><p>Enter the starting amount to estimate how many seedlings are available in the current growing cycle.</p><div className="cycle"><span>Current growing cycle</span><strong>{months}</strong><small>months since February 2024</small></div></div><form className="seedlings-calculator" onSubmit={calculate}><label htmlFor="capitalReal">Seedling count <span>(base)</span></label><input id="capitalReal" name="capitalReal" type="number" min="0" step="1000" value={base} onChange={(event) => setBase(event.target.value)} inputMode="numeric" /><button type="submit">Estimate availability <span>→</span></button><div className="seedlings-result" aria-live="polite"><span>Estimated availability</span><strong>{result.toLocaleString("en-US")}</strong><small>seedlings</small></div><p className="seedlings-note">The estimate applies the growth model and rounding defined for this cycle.</p></form></section><CycleCalculator /></main>;
 }
 
 function CycleCalculator() {
