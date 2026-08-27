@@ -15,7 +15,8 @@ export type PlantMeasurement = { plantId: string; date: string; totalHeight: num
 export type PlantEvent = { plantId: string; date: string; value: number };
 
 async function loadPlantData() {
-  for (let intento = 0; intento < 3; intento++) {
+  const retryable = (message: string) => /jwt issued at future|fetch failed|network|timeout|connection|\b50[234]\b/i.test(message);
+  for (let attempt = 0; attempt < 5; attempt++) {
     const db = createSupabaseAdminClient();
     const [measurements, water, nutrients] = await Promise.all([
       db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000),
@@ -23,8 +24,8 @@ async function loadPlantData() {
       db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
     ]);
     const error = measurements.error ?? water.error ?? nutrients.error;
-    if (error?.message.includes("JWT issued at future") && intento < 2) {
-      await new Promise((resolve) => setTimeout(resolve, 500 * (intento + 1)));
+    if (error && retryable(error.message) && attempt < 4) {
+      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
       continue;
     }
     if (error) throw new Error(error.message);
