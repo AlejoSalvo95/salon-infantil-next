@@ -30,10 +30,22 @@ async function loadPlantData() {
     }
     if (error) throw new Error(error.message);
     const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
+    const allMeasurements = (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height }));
+    const allWaterEvents = (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount }));
+    const allNutrientEvents = (nutrients.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose }));
+    const firstWaterByPlant = new Map<string, string>();
+    allWaterEvents.filter((event) => event.value > 0).forEach((event) => {
+      const current = firstWaterByPlant.get(event.plantId);
+      if (!current || event.date < current) firstWaterByPlant.set(event.plantId, event.date);
+    });
+    const onOrAfterFirstWater = (item: { plantId: string; date: string }) => {
+      const firstWater = firstWaterByPlant.get(item.plantId);
+      return !firstWater || item.date >= firstWater;
+    };
     return {
-      measurements: (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height })),
-      waterEvents: (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount })),
-      nutrientEvents: (nutrients.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.sampled_at, value: row.dose })),
+      measurements: allMeasurements.filter(onOrAfterFirstWater),
+      waterEvents: allWaterEvents.filter(onOrAfterFirstWater),
+      nutrientEvents: allNutrientEvents.filter(onOrAfterFirstWater),
     };
   }
   throw new Error("Plant data could not be loaded.");
