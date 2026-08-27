@@ -13,6 +13,17 @@ function getSupabaseAdminConfig() {
   return { url, key };
 }
 
+function getSupabaseHeaders(key: string) {
+  const headers: Record<string, string> = {
+    apikey: key,
+    "Content-Type": "application/json",
+  };
+
+  // Legacy service-role keys are JWTs; new sb_secret_ keys are not.
+  if (!key.startsWith("sb_secret_")) headers.Authorization = `Bearer ${key}`;
+  return headers;
+}
+
 export async function persistGardeningImport(
   filename: string,
   plantId: string,
@@ -21,11 +32,7 @@ export async function persistGardeningImport(
   const { url, key } = getSupabaseAdminConfig();
   const response = await fetch(`${url}/rest/v1/rpc/persist_gardening_import`, {
     method: "POST",
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
+    headers: getSupabaseHeaders(key),
     body: JSON.stringify({
       p_filename: filename.slice(0, 255),
       p_plant_id: plantId,
