@@ -1,9 +1,10 @@
-type Section = "plants" | "flowers" | "seedlings";
+type Section = "plants" | "flowers" | "seedlings" | "youtube";
 
 const links: { href: string; label: string; section: Section }[] = [
   { href: "/plants", label: "Growth", section: "plants" },
   { href: "/flowers", label: "Flowers", section: "flowers" },
   { href: "/seedlings", label: "Seedlings", section: "seedlings" },
+  { href: "/youtube", label: "YouTube", section: "youtube" },
 ];
 
 export function PrivateAreaNav({ current }: { current: Section }) {

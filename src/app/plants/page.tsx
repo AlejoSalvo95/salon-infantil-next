@@ -15,6 +15,8 @@ export type PlantMeasurement = { plantId: string; date: string; totalHeight: num
 export type PlantEvent = { plantId: string; date: string; value: number };
 
 async function loadPlantData() {
+  const incidentId = crypto.randomUUID();
+  const startedAt = Date.now();
   const retryable = (message: string) => /jwt issued at future|fetch failed|network|timeout|connection|\b50[234]\b/i.test(message);
   for (let attempt = 0; attempt < 5; attempt++) {
     const db = createSupabaseAdminClient();
@@ -23,12 +25,39 @@ async function loadPlantData() {
       db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000),
       db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
     ]);
-    const error = measurements.error ?? water.error ?? nutrients.error;
+    const failedQuery = [
+      { query: "gardening_measurements", error: measurements.error },
+      { query: "gardening_water_events", error: water.error },
+      { query: "gardening_nutrient_events", error: nutrients.error },
+    ].find((result) => result.error);
+    const error = failedQuery?.error;
     if (error && retryable(error.message) && attempt < 4) {
+      console.warn("plants_data_load_retry", {
+        incidentId,
+        query: failedQuery?.query,
+        attempt: attempt + 1,
+        code: error.code,
+        message: error.message,
+        elapsedMs: Date.now() - startedAt,
+      });
       await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
       continue;
     }
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("plants_data_load_failed", {
+        incidentId,
+        query: failedQuery?.query,
+        attempt: attempt + 1,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        elapsedMs: Date.now() - startedAt,
+        supabaseHost: process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).host : "missing",
+        keyType: process.env.SUPABASE_SECRET_KEY?.startsWith("sb_secret_") ? "secret" : process.env.SUPABASE_SERVICE_ROLE_KEY ? "legacy-service-role" : "missing",
+      });
+      throw new Error(`Plant data query failed [${incidentId}]: ${error.message}`);
+    }
     const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
     const allMeasurements = (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height }));
     const allWaterEvents = (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount }));
@@ -58,6 +87,11 @@ export default async function PlantsPage({ searchParams }: { searchParams: Promi
     const { error } = await searchParams;
     return <main className="plants-login"><a className="plants-logo" href="/">☁ nube</a><section><p className="plants-kicker">Private garden</p><h1>Watch them<br/><em>grow.</em></h1><p>Enter the garden key to view plant measurements.</p><form action="/api/plants/login" method="post"><label htmlFor="password">Garden access key</label><input id="password" name="password" type="password" autoComplete="current-password" required autoFocus/>{error && <span role="alert">The garden key is incorrect.</span>}<button type="submit">Open plant tracker <span>→</span></button></form></section><aside aria-hidden="true"><span>✿</span></aside></main>;
   }
-  const data = await loadPlantData();
-  return <PlantsDashboard {...data} />;
+  try {
+    const data = await loadPlantData();
+    return <PlantsDashboard {...data} />;
+  } catch (error) {
+    console.error("plants_page_render_failed", error);
+    throw error;
+  }
 }
