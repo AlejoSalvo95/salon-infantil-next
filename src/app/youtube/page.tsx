@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { ProtectedAreaLogin } from "@/components/ProtectedAreaLogin";
 import { isPlantsSessionValid, PLANTS_COOKIE } from "@/lib/plants-auth";
 import { YouTubeDashboard } from "./youtube-dashboard";
+import "../plants/plants.css";
 import "./youtube.css";
 
 export const metadata: Metadata = {
@@ -11,8 +12,11 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 
-export default async function YouTubePage() {
+export default async function YouTubePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const cookieStore = await cookies();
-  if (!isPlantsSessionValid(cookieStore.get(PLANTS_COOKIE)?.value)) redirect("/plants");
+  if (!isPlantsSessionValid(cookieStore.get(PLANTS_COOKIE)?.value)) {
+    const { error } = await searchParams;
+    return <ProtectedAreaLogin destination="/youtube" error={error} />;
+  }
   return <YouTubeDashboard />;
 }
