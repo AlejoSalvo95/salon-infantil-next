@@ -7,6 +7,7 @@ import { PrivateAreaNav } from "@/components/PrivateAreaNav";
 type Props = { measurements: PlantMeasurement[]; waterEvents: PlantEvent[]; nutrientEvents: PlantEvent[] };
 const dateFormat = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" });
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const percentage = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 
 function timestamp(date: string) { return new Date(`${date}T12:00:00`).getTime(); }
 function uniqueEventDates(events: PlantEvent[]) { return [...new Set(events.map((event) => event.date))]; }
@@ -17,6 +18,10 @@ export function PlantsDashboard({ measurements, waterEvents, nutrientEvents }: P
   const water = useMemo(() => waterEvents.filter((item) => item.plantId === plantId), [waterEvents, plantId]);
   const nutrients = useMemo(() => nutrientEvents.filter((item) => item.plantId === plantId), [nutrientEvents, plantId]);
   const latest = selected.at(-1);
+  const peak = selected.reduce<PlantMeasurement | undefined>((highest, item) => !highest || item.totalHeight > highest.totalHeight ? item : highest, undefined);
+  const dropFromPeak = latest && peak && peak.totalHeight !== 0
+    ? Math.max(0, (peak.totalHeight - latest.totalHeight) / Math.abs(peak.totalHeight) * 100)
+    : 0;
   const wateredDates = new Set(water.filter((event) => event.value > 0).map((event) => event.date));
   const change = selected.slice(1).reduce((total, item, index) => wateredDates.has(item.date) ? total : total + item.totalHeight - selected[index].totalHeight, 0);
   const monthlyGrowth = new Map<string, number>();
@@ -29,7 +34,11 @@ export function PlantsDashboard({ measurements, waterEvents, nutrientEvents }: P
     ? [...monthlyGrowth.values()].reduce((total, value) => total + value, 0) / monthlyGrowth.size
     : 0;
 
-  return <main className="plants-page"><header className="plants-header"><a className="plants-logo" href="/">☁ nube</a><PrivateAreaNav current="plants"/></header><section className="plants-intro"><div><p className="plants-kicker">Live garden data</p><h1>Growth<br/><em>journal.</em></h1></div></section>{selected.length ? <><section className="plant-metrics" aria-label="Plant summary"><article><span>Latest total height</span><strong>{compact.format(latest!.totalHeight)}</strong><small>recorded on {dateFormat.format(new Date(`${latest!.date}T12:00`))}</small></article><article><span>Cumulative change</span><strong>{change >= 0 ? "+" : ""}{compact.format(change)}</strong><small>on days without watering</small></article><article><span>Average monthly growth</span><strong>{averageMonthlyGrowth >= 0 ? "+" : ""}{compact.format(averageMonthlyGrowth)}</strong><small>average across {monthlyGrowth.size} observed months</small></article><article><span>Observations</span><strong>{selected.length}</strong><small>{uniqueEventDates(water.filter((event) => event.value > 0)).length} watering days · {uniqueEventDates(nutrients).length} with nutrients</small></article></section><GrowthChart measurements={selected} water={water} nutrients={nutrients}/><NaturalGrowthChart measurements={selected} water={water}/><MonthlyGrowthCharts measurements={selected} water={water}/></> : <section className="plant-empty"><span>☘</span><h2>No measurements yet</h2><p>Imported Supabase measurements will appear here.</p></section>}</main>;
+  return <main className="plants-page"><header className="plants-header"><a className="plants-logo" href="/">☁ nube</a><PrivateAreaNav current="plants"/></header><section className="plants-intro"><div><p className="plants-kicker">Live garden data</p><h1>Growth<br/><em>journal.</em></h1></div></section>{selected.length ? <><section className="plant-metrics" aria-label="Plant summary"><article><span>Latest total height</span><strong>{compact.format(latest!.totalHeight)}</strong><small>recorded on {dateFormat.format(new Date(`${latest!.date}T12:00`))}</small></article>
+<article><span>Drop from peak</span><strong>{percentage.format(dropFromPeak)}%</strong><small>from {compact.format(peak!.totalHeight)} on {dateFormat.format(new Date(`${peak!.date}T12:00`))}</small></article>
+<article><span>Cumulative change</span><strong>{change >= 0 ? "+" : ""}{compact.format(change)}</strong><small>on days without watering</small></article>
+<article><span>Average monthly growth</span><strong>{averageMonthlyGrowth >= 0 ? "+" : ""}{compact.format(averageMonthlyGrowth)}</strong><small>average across {monthlyGrowth.size} observed months</small></article>
+<article><span>Observations</span><strong>{selected.length}</strong><small>{uniqueEventDates(water.filter((event) => event.value > 0)).length} watering days · {uniqueEventDates(nutrients).length} with nutrients</small></article></section><GrowthChart measurements={selected} water={water} nutrients={nutrients}/><NaturalGrowthChart measurements={selected} water={water}/><MonthlyGrowthCharts measurements={selected} water={water}/></> : <section className="plant-empty"><span>☘</span><h2>No measurements yet</h2><p>Imported Supabase measurements will appear here.</p></section>}</main>;
 }
 
 function GrowthChart({ measurements, water, nutrients }: { measurements: PlantMeasurement[]; water: PlantEvent[]; nutrients: PlantEvent[] }) {
