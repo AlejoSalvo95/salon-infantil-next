@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PrivateAreaNav } from "@/components/PrivateAreaNav";
 import type { YouTubeChannelMetrics, YouTubeVideoMetric } from "@/lib/youtube-metrics";
 
@@ -98,12 +98,16 @@ function MetricTable({ title, accent, items }: { title: string; accent: "cyan" |
 }
 
 function VideoViewsChart({ items }: { items: YouTubeVideoMetric[] }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(1000);
+  const [hovered, setHovered] = useState<number | null>(null);
+  useEffect(() => { const node = wrap.current; if (!node) return; const observer = new ResizeObserver(([entry]) => setWidth(Math.max(650, entry.contentRect.width))); observer.observe(node); return () => observer.disconnect(); }, []);
   const data = items
     .filter((item) => item.uploadDate && /^\d{8}$/.test(item.uploadDate))
     .sort((a, b) => a.uploadDate!.localeCompare(b.uploadDate!))
     .map((item) => ({ item, views: item.viewCount ?? 0, time: new Date(`${item.uploadDate!.slice(0, 4)}-${item.uploadDate!.slice(4, 6)}-${item.uploadDate!.slice(6)}T12:00:00`).getTime() }));
   if (!data.length) return null;
-  const width = 1000, height = 350, left = 68, right = 24, top = 28, bottom = 58;
+  const height = width < 760 ? 330 : 350, left = 68, right = 24, top = 28, bottom = 58;
   const maxViews = Math.max(1, ...data.map((point) => point.views));
   const minTime = data[0].time, maxTime = data.at(-1)!.time;
   const x = (time: number) => minTime === maxTime ? left + (width - left - right) / 2 : left + (time - minTime) / (maxTime - minTime) * (width - left - right);
@@ -111,5 +115,7 @@ function VideoViewsChart({ items }: { items: YouTubeVideoMetric[] }) {
   const line = data.map((point, index) => `${index ? "L" : "M"}${x(point.time).toFixed(1)},${y(point.views).toFixed(1)}`).join(" ");
   const labelCount = Math.min(6, data.length);
   const labelIndexes = Array.from(new Set(Array.from({ length: labelCount }, (_, index) => Math.round(index * (data.length - 1) / Math.max(labelCount - 1, 1)))));
-  return <div className="performance-chart"><div className="performance-chart-head"><div><p className="youtube-kicker">Videos por fecha de publicación</p><h3>Vistas de cada video</h3></div><div className="performance-legend"><span><i className="relative-line"/>Cantidad de vistas</span></div></div><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Cantidad de vistas de cada video según su fecha de publicación">{[0,.25,.5,.75,1].map((part) => <g key={part}><line className="performance-grid" x1={left} x2={width-right} y1={top+part*(height-top-bottom)} y2={top+part*(height-top-bottom)}/><text className="performance-axis left" x={left-10} y={top+(1-part)*(height-top-bottom)+4}>{number.format(Math.round(maxViews*part))}</text></g>)}<path className="relative-path" d={line}/>{data.map((point) => <circle key={point.item.url} className="relative-dot" cx={x(point.time)} cy={y(point.views)} r="4"><title>{`${formatDate(point.item.uploadDate)} · ${point.item.title}: ${number.format(point.views)} vistas`}</title></circle>)}{labelIndexes.map((index) => <text key={data[index].item.url} className="performance-axis date" x={x(data[index].time)} y={height-14}>{formatDate(data[index].item.uploadDate)}</text>)}</svg></div>;
+  const activeIndex = hovered ?? data.length - 1, active = data[activeIndex];
+  function move(event: React.PointerEvent<SVGRectElement>) { const bounds = event.currentTarget.getBoundingClientRect(); const cursor = ((event.clientX - bounds.left) / bounds.width) * width; let nearest = 0, distance = Infinity; data.forEach((point, index) => { const next = Math.abs(x(point.time) - cursor); if (next < distance) { distance = next; nearest = index; } }); setHovered(nearest); }
+  return <div className="performance-chart"><div className="performance-chart-head"><div><p className="youtube-kicker">Videos por fecha de publicación</p><h3>Vistas de cada video</h3></div><div className="performance-legend"><span><i className="relative-line"/>Cantidad de vistas</span></div></div><div className="youtube-chart-value" aria-live="polite"><strong>{number.format(active.views)} <small>vistas</small></strong><span>{formatDate(active.item.uploadDate)} · {active.item.title}</span></div><div className="youtube-chart-wrap" ref={wrap}><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Cantidad de vistas de cada video según su fecha de publicación">{[0,.25,.5,.75,1].map((part) => <g key={part}><line className="performance-grid" x1={left} x2={width-right} y1={top+part*(height-top-bottom)} y2={top+part*(height-top-bottom)}/><text className="performance-axis left" x={left-10} y={top+(1-part)*(height-top-bottom)+4}>{number.format(Math.round(maxViews*part))}</text></g>)}<path className="relative-path" d={line}/>{data.map((point) => <circle key={point.item.url} className="relative-dot" cx={x(point.time)} cy={y(point.views)} r="4"/>)}{labelIndexes.map((index) => <text key={data[index].item.url} className="performance-axis date" x={x(data[index].time)} y={height-14}>{formatDate(data[index].item.uploadDate)}</text>)}<line className="youtube-hover-guide" x1={x(active.time)} x2={x(active.time)} y1={top} y2={height-bottom}/><circle className="youtube-hover-dot" cx={x(active.time)} cy={y(active.views)} r="7"/><rect className="youtube-chart-hit" x={left} y={top} width={width-left-right} height={height-top-bottom} onPointerMove={move} onPointerLeave={() => setHovered(null)}/></svg></div></div>;
 }
