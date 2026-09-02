@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isPlantsPasswordValid, PLANTS_COOKIE, PLANTS_SESSION_SECONDS, plantsSessionToken } from "@/lib/plants-auth";
 
-const destinations = new Set(["/plants", "/flowers", "/seedlings", "/youtube"]);
+const destinations = new Set(["/plants", "/flowers", "/seedlings", "/youtube", "/youtube/analytics", "/youtube/milestones"]);
 
 export async function POST(request: Request) {
   const form = await request.formData();

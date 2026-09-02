@@ -1,5 +1,5 @@
 type Props = {
-  destination: "/plants" | "/flowers" | "/seedlings" | "/youtube";
+  destination: "/plants" | "/flowers" | "/seedlings" | "/youtube" | "/youtube/analytics" | "/youtube/milestones";
   error?: string;
 };
 

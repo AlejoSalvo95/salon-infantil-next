@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PrivateAreaNav } from "@/components/PrivateAreaNav";
+import { YouTubeSectionNav } from "./youtube-section-nav";
 import type { YouTubeChannelMetrics, YouTubeVideoMetric } from "@/lib/youtube-metrics";
 
 const number = new Intl.NumberFormat("es-UY");
@@ -67,6 +68,7 @@ export function YouTubeDashboard() {
 
   return <main className="youtube-page">
     <header className="youtube-header"><a className="plants-logo" href="/">☁ nube</a><PrivateAreaNav current="youtube" /></header>
+    <YouTubeSectionNav current="analytics" />
     <section className="youtube-intro">
       <div><p className="youtube-kicker">Channel intelligence</p><h1>YouTube<br/><em>metrics.</em></h1><p>Ingresá un @handle o pegá la URL de un canal para analizar sus Shorts y videos públicos.</p></div>
       <form onSubmit={submit}><label htmlFor="channel">Canal de YouTube</label><div><input id="channel" value={channel} onChange={(event) => setChannel(event.target.value)} placeholder="@umarstar123" required/><button disabled={loading}>{loading ? "Analizando…" : "Analizar canal"}</button></div><small>La consulta puede tardar uno o dos minutos según la cantidad de publicaciones.</small></form>
