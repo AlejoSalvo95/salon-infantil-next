@@ -44,7 +44,7 @@ function performanceLabel(multiplier: number) {
 }
 
 export function YouTubeDashboard() {
-  const [channel, setChannel] = useState("@umarstar123");
+  const [channel, setChannel] = useState("@heathclaydon");
   const [data, setData] = useState<YouTubeChannelMetrics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -76,12 +76,37 @@ export function YouTubeDashboard() {
     {error && <p className="youtube-error" role="alert">{error}</p>}
     {data && <>
       <section className="youtube-summary" aria-label="Resumen del canal"><article><span>Publicaciones</span><strong>{number.format(all.length)}</strong><small>{data.shorts.length} Shorts · {data.videos.length} videos</small></article><article><span>Vistas</span><strong>{number.format(total(all, "viewCount"))}</strong><small>total visible</small></article><article><span>Likes</span><strong>{number.format(total(all, "likeCount"))}</strong><small>total visible</small></article><article><span>Comentarios</span><strong>{number.format(total(all, "commentCount"))}</strong><small>total visible</small></article></section>
+      <MonetizationPanel data={data}/>
       <p className="youtube-classification">Shorts se clasifica por duración de hasta 3 minutos; YouTube no publica un indicador exacto de formato Short en su API.</p>
       <MetricTable title="Shorts" accent="cyan" items={data.shorts}/>
       <MetricTable title="Videos" accent="yellow" items={data.videos}/>
     </>}
     {!data && !loading && <section className="youtube-empty"><span>▶</span><h2>Un canal, todas sus métricas.</h2><p>Los resultados aparecerán aquí separados entre Shorts y videos.</p></section>}
   </main>;
+}
+
+type YppStatus = "unknown" | "not-applied" | "review" | "approved" | "rejected";
+
+function MonetizationPanel({ data }: { data: YouTubeChannelMetrics }) {
+  const [watchHours, setWatchHours] = useState("");
+  const [status, setStatus] = useState<YppStatus>("unknown");
+  const storageKey = `youtube-monetization:${data.channel}`;
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) ?? "{}") as { watchHours?: string; status?: YppStatus };
+      setWatchHours(saved.watchHours ?? "");
+      setStatus(saved.status ?? "unknown");
+    } catch { setWatchHours(""); setStatus("unknown"); }
+  }, [storageKey]);
+  function save(nextHours: string, nextStatus: YppStatus) {
+    setWatchHours(nextHours); setStatus(nextStatus);
+    localStorage.setItem(storageKey, JSON.stringify({ watchHours: nextHours, status: nextStatus }));
+  }
+  const hours = watchHours === "" ? null : Math.max(0, Number(watchHours) || 0);
+  const subscribers = data.subscriberCount;
+  const approved = status === "approved";
+  const statusLabels: Record<YppStatus, string> = { unknown: "Sin confirmar", "not-applied": "Todavía no aplicado", review: "En revisión", approved: "Aprobado", rejected: "No aprobado" };
+  return <section className="monetization-panel" aria-labelledby="monetization-title"><div className="monetization-heading"><div><p className="youtube-kicker">Estado actual</p><h2 id="monetization-title">Monetización</h2></div><strong className={approved ? "confirmed" : "pending"}><i/>{approved ? "Monetizando hoy" : "Aún no confirmado"}</strong></div><div className="monetization-cards"><article><div><span>Suscriptores</span><strong>{subscribers === null ? "—" : number.format(subscribers)}</strong><small>{data.hiddenSubscriberCount ? "El canal oculta este dato" : "Dato público de YouTube"}</small></div><div className="monetization-progress" aria-label={`${subscribers ?? 0} de 1000 suscriptores`}><i style={{ width: `${Math.min(100, (subscribers ?? 0) / 1000 * 100)}%` }}/></div><b>{subscribers === null ? "No disponible" : subscribers >= 1000 ? "Meta alcanzada" : `Faltan ${number.format(1000 - subscribers)}`} <em>/ 1.000</em></b></article><article><label htmlFor="valid-watch-hours">Horas públicas válidas</label><div className="monetization-input"><input id="valid-watch-hours" type="number" min="0" step="1" inputMode="numeric" value={watchHours} onChange={(event) => save(event.target.value, status)} placeholder="Ingresar desde Studio"/><span>h</span></div><div className="monetization-progress" aria-label={`${hours ?? 0} de 4000 horas válidas`}><i style={{ width: `${Math.min(100, (hours ?? 0) / 4000 * 100)}%` }}/></div><b>{hours === null ? "Dato privado pendiente" : hours >= 4000 ? "Meta alcanzada" : `Faltan ${number.format(4000 - hours)} h`} <em>/ 4.000 h</em></b></article><article><label htmlFor="ypp-status">Estado de aprobación YPP</label><select id="ypp-status" value={status} onChange={(event) => save(watchHours, event.target.value as YppStatus)}><option value="unknown">Sin confirmar</option><option value="not-applied">Todavía no aplicado</option><option value="review">En revisión</option><option value="approved">Aprobado</option><option value="rejected">No aprobado</option></select><strong className={`ypp-state ${status}`}>{statusLabels[status]}</strong><small>Copialo desde YouTube Studio → Ingresos</small></article></div><p className="monetization-note">Para ingresos por anuncios: 1.000 suscriptores y 4.000 horas públicas válidas en 12 meses. Las horas del feed de Shorts no cuentan. Las horas y la aprobación son privadas y se guardan solamente en este navegador.</p></section>;
 }
 
 function MetricTable({ title, accent, items }: { title: string; accent: "cyan" | "yellow"; items: YouTubeVideoMetric[] }) {
