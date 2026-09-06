@@ -65,3 +65,34 @@ export function estimateMonetization(data: YouTubeChannelMetrics) {
   }
   return { current, historical, evidence, latestDays };
 }
+
+// Scenario assumptions in USD per 1,000 public views, not measured channel RPM.
+export function estimateRevenue(data: YouTubeChannelMetrics) {
+  const status = estimateMonetization(data);
+  const items = [...data.videos, ...data.shorts];
+  const available = items.some((item) => item.viewCount !== null);
+  const now = Date.parse(data.fetchedAt);
+  const recent = (item: YouTubeVideoMetric) => {
+    if (!item.uploadDate || !/^\d{8}$/.test(item.uploadDate)) return false;
+    const date = Date.parse(`${item.uploadDate.slice(0, 4)}-${item.uploadDate.slice(4, 6)}-${item.uploadDate.slice(6)}T00:00:00Z`);
+    const days = (now - date) / 86400000;
+    return days >= 0 && days <= 90;
+  };
+  const sum = (videos: YouTubeVideoMetric[]) => videos.reduce((value, item) => value + Math.max(0, item.viewCount ?? 0), 0);
+  const range = (videos: YouTubeVideoMetric[], shorts: YouTubeVideoMetric[], coverage: number, divisor = 1) => ({
+    low: (sum(videos) * 0.5 + sum(shorts) * 0.01) / 1000 * coverage / divisor,
+    high: (sum(videos) * 5 + sum(shorts) * 0.2) / 1000 / divisor,
+  });
+  const recentVideos = data.videos.filter(recent);
+  const recentShorts = data.shorts.filter(recent);
+  const recentKnown = [...recentVideos, ...recentShorts].some((item) => item.viewCount !== null);
+  const tiny = data.subscriberCount !== null && !data.hiddenSubscriberCount && data.subscriberCount < 500 && available && items.every((item) => item.viewCount !== null) && sum(items) < 1000;
+  const zero = { low: 0, high: 0 };
+  return {
+    lifetime: !available ? null : tiny ? zero : range(data.videos, data.shorts, 0.25),
+    monthly: !available ? null : tiny ? zero : recentKnown ? range(recentVideos, recentShorts, 1, 3) : null,
+    tiny,
+    conditional: status.current.tone !== "likely",
+    recentViews: sum([...recentVideos, ...recentShorts]),
+  };
+}
