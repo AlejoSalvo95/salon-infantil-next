@@ -52,10 +52,12 @@ export function YouTubeDashboard() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const trimmedChannel = channel.trim();
+    setChannel(trimmedChannel);
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/youtube/metrics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel }) });
+      const response = await fetch("/api/youtube/metrics", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: trimmedChannel }) });
       const payload = await response.json() as YouTubeChannelMetrics & { error?: string };
       if (!response.ok) throw new Error(payload.error || "No se pudo analizar el canal.");
       setData(payload);
@@ -75,6 +77,7 @@ export function YouTubeDashboard() {
     </section>
     {error && <p className="youtube-error" role="alert">{error}</p>}
     {data && <>
+      <p className="youtube-channel-link">Canal analizado: <a href={data.channel} target="_blank" rel="noopener noreferrer" aria-label={`Abrir el canal ${data.channel.replace("https://www.youtube.com/", "")} en YouTube (nueva pestaña)`}>{data.channel.replace("https://www.youtube.com/", "")} ↗</a></p>
       <section className="youtube-summary" aria-label="Resumen del canal"><article><span>Publicaciones</span><strong>{number.format(all.length)}</strong><small>{data.shorts.length} Shorts · {data.videos.length} videos</small></article><article><span>Vistas</span><strong>{number.format(total(all, "viewCount"))}</strong><small>total visible</small></article><article><span>Likes</span><strong>{number.format(total(all, "likeCount"))}</strong><small>total visible</small></article><article><span>Comentarios</span><strong>{number.format(total(all, "commentCount"))}</strong><small>total visible</small></article></section>
       <MonetizationPanel data={data}/>
       <p className="youtube-classification">Shorts se clasifica por duración de hasta 3 minutos; YouTube no publica un indicador exacto de formato Short en su API.</p>

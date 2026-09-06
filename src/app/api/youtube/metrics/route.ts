@@ -13,10 +13,11 @@ export async function POST(request: Request) {
   }
   try {
     const body = await request.json() as { channel?: unknown };
-    if (typeof body.channel !== "string" || body.channel.length > 300) {
+    const channel = typeof body.channel === "string" ? body.channel.trim() : "";
+    if (!channel || channel.length > 300) {
       return NextResponse.json({ error: "Canal inválido." }, { status: 400 });
     }
-    return NextResponse.json(await getYouTubeChannelMetrics(body.channel));
+    return NextResponse.json(await getYouTubeChannelMetrics(channel));
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo analizar el canal.";
     return NextResponse.json({ error: message }, { status: 500 });
