@@ -84,6 +84,11 @@ export function YouTubeDashboard() {
       <p className="youtube-classification">Shorts se clasifica por duración de hasta 3 minutos; YouTube no publica un indicador exacto de formato Short en su API.</p>
       <MetricTable title="Shorts" accent="cyan" items={data.shorts}/>
       <MetricTable title="Videos" accent="yellow" items={data.videos}/>
+      <details className="youtube-api-data">
+        <summary>Ver respuesta completa de la API</summary>
+        <p>JSON completo recibido de /api/youtube/metrics para esta consulta, sin recortar las listas. Incluye los datos procesados por esta aplicación; no es la respuesta original de Google. La cantidad de publicaciones depende del límite de la consulta.</p>
+        <pre tabIndex={0} aria-label="Respuesta de la API en formato JSON"><code>{JSON.stringify(data, null, 2)}</code></pre>
+      </details>
     </>}
     {!data && !loading && <section className="youtube-empty"><span>▶</span><h2>Un canal, todas sus métricas.</h2><p>Los resultados aparecerán aquí separados entre Shorts y videos.</p></section>}
   </main>;
