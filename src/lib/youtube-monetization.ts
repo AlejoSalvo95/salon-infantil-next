@@ -33,8 +33,8 @@ export function estimateMonetization(data: YouTubeChannelMetrics) {
   let current: Estimate;
   let historical: Estimate;
 
-  if (subscribers === null || !items.length || items.every((video) => video.viewCount === null)) {
-    current = result("Datos insuficientes", "Faltan suscriptores, vistas públicas o publicaciones para hacer una estimación útil.", "possible");
+  if ((data.unclassified?.length ?? 0) > 0 || subscribers === null || !items.length || items.every((video) => video.viewCount === null)) {
+    current = result("Datos insuficientes", "Faltan datos o hay publicaciones sin formato confirmado para hacer una estimación útil.", "possible");
     historical = result("Datos insuficientes", "El historial visible no alcanza para estimar si monetizó antes.", "possible");
   } else {
     if (subscribers < 500 && low) {
@@ -86,7 +86,7 @@ export function estimateRevenue(data: YouTubeChannelMetrics) {
   const recentVideos = data.videos.filter(recent);
   const recentShorts = data.shorts.filter(recent);
   const recentKnown = [...recentVideos, ...recentShorts].some((item) => item.viewCount !== null);
-  const tiny = data.subscriberCount !== null && !data.hiddenSubscriberCount && data.subscriberCount < 500 && available && items.every((item) => item.viewCount !== null) && sum(items) < 1000;
+  const tiny = !(data.unclassified?.length) && data.subscriberCount !== null && !data.hiddenSubscriberCount && data.subscriberCount < 500 && available && items.every((item) => item.viewCount !== null) && sum(items) < 1000;
   const zero = { low: 0, high: 0 };
   return {
     lifetime: !available ? null : tiny ? zero : range(data.videos, data.shorts, 0.25),
