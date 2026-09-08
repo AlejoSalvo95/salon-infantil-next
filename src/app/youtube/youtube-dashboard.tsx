@@ -85,15 +85,27 @@ export function YouTubeDashboard() {
       <MetricTable title="Shorts" accent="cyan" items={data.shorts}/>
       <MetricTable title="Videos" accent="yellow" items={data.videos}/>
       {!!data.unclassified?.length && <MetricTable title="Sin clasificar" accent="yellow" items={data.unclassified}/>}
-      <details className="youtube-api-data"><summary>Ver evidencia de clasificación</summary><pre tabIndex={0}><code>{JSON.stringify(data.formatEvidence, null, 2)}</code></pre></details>
       <details className="youtube-api-data">
         <summary>Ver respuestas originales de YouTube</summary>
         <p>Cuerpos JSON originales recibidos de Google, antes de transformar o clasificar los datos. Cada entrada incluye el recurso, los parámetros sin la clave y el estado HTTP. Se incluyen todas las páginas y lotes consultados, dentro del límite de publicaciones configurado; no campos ni páginas que no se hayan solicitado.</p>
-        <pre tabIndex={0} aria-label="Respuesta de la API en formato JSON"><code>{JSON.stringify(data.rawResponses, null, 2)}</code></pre>
+        <div className="youtube-json-viewer" key={data.fetchedAt} aria-label="Respuestas JSON desplegables">{data.rawResponses.map((response, index) => <JsonNode key={index} name={`${index + 1}. ${response.resource}`} value={response}/>)}</div>
       </details>
     </>}
     {!data && !loading && <section className="youtube-empty"><span>▶</span><h2>Un canal, todas sus métricas.</h2><p>Los resultados aparecerán aquí separados entre Shorts y videos.</p></section>}
   </main>;
+}
+
+function JsonNode({ name, value }: { name: string; value: unknown }) {
+  const [expanded, setExpanded] = useState(false);
+  if (value !== null && typeof value === "object") {
+    const entries = Object.entries(value);
+    const array = Array.isArray(value);
+    return <details className="youtube-json-node" onToggle={(event) => setExpanded(event.currentTarget.open)}>
+      <summary><span className="youtube-json-key">{name}</span>: <span className="youtube-json-count">{array ? `[${entries.length} elementos]` : `{${entries.length} propiedades}`}</span></summary>
+      {expanded && <div className="youtube-json-children">{entries.length ? entries.map(([key, child]) => <JsonNode key={key} name={array ? `[${key}]` : key} value={child}/>) : <span>{array ? "[]" : "{}"}</span>}</div>}
+    </details>;
+  }
+  return <div className="youtube-json-leaf"><span className="youtube-json-key">{name}</span>: <span className={`youtube-json-value ${value === null ? "null" : typeof value}`}>{JSON.stringify(value) ?? "undefined"}</span></div>;
 }
 
 function MonetizationPanel({ data }: { data: YouTubeChannelMetrics }) {
