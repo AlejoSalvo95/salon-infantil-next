@@ -126,8 +126,36 @@ function MonetizationPanel({ data }: { data: YouTubeChannelMetrics }) {
   </section>;
 }
 
+const metricColumns = [
+  { key: "uploadDate", label: "Fecha" },
+  { key: "title", label: "Título" },
+  { key: "viewCount", label: "Vistas" },
+  { key: "likeCount", label: "Likes" },
+  { key: "commentCount", label: "Comentarios" },
+  { key: "duration", label: "Duración" },
+] as const;
+type MetricSortKey = typeof metricColumns[number]["key"];
+
+function sortMetrics(items: YouTubeVideoMetric[], key: MetricSortKey, direction: "asc" | "desc") {
+  return [...items].sort((a, b) => {
+    const left = a[key], right = b[key];
+    if (left === null) return right === null ? 0 : 1;
+    if (right === null) return -1;
+    const comparison = typeof left === "number" && typeof right === "number"
+      ? left - right
+      : String(left).localeCompare(String(right), "es", { numeric: true, sensitivity: "base" });
+    return direction === "asc" ? comparison : -comparison;
+  });
+}
+
 function MetricTable({ title, accent, items }: { title: string; accent: "cyan" | "yellow"; items: YouTubeVideoMetric[] }) {
   const pageSize = 10;
+  const [sort, setSort] = useState<{ key: MetricSortKey; direction: "asc" | "desc" }>({ key: "viewCount", direction: "desc" });
+  const sortedItems = useMemo(() => sortMetrics(items, sort.key, sort.direction), [items, sort]);
+  function changeSort(key: MetricSortKey) {
+    setSort((current) => ({ key, direction: current.key === key ? (current.direction === "asc" ? "desc" : "asc") : key === "title" ? "asc" : "desc" }));
+    setPage(1);
+  }
   const [page, setPage] = useState(1);
   useEffect(() => setPage(1), [items]);
   const medianViews = median(items.flatMap((item) => item.viewCount === null ? [] : [item.viewCount]));
@@ -137,12 +165,12 @@ function MetricTable({ title, accent, items }: { title: string; accent: "cyan" |
   const topEngagement = items.map((item) => ({ item, value: engagement(item) })).filter((entry): entry is { item: YouTubeVideoMetric; value: number } => entry.value !== null).sort((a, b) => b.value - a.value).slice(0, 10);
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const pageItems = items.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pageItems = sortedItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return <section className={`youtube-results ${accent}`}><div className="youtube-results-heading"><div><p className="youtube-kicker">{items.length} publicaciones</p><h2>{title}</h2></div><span>{number.format(total(items, "viewCount"))} vistas</span></div>{items.length ? <>
     <div className="youtube-analysis"><article><span>Mediana de vistas</span><strong>{number.format(medianViews)}</strong><small>base del rendimiento relativo</small></article><article><span>Engagement promedio</span><strong>{averageEngagement.toFixed(2)}%</strong><small>likes + comentarios sobre vistas</small></article><article><span>Engagement mediano</span><strong>{medianEngagement.toFixed(2)}%</strong><small>punto medio del canal</small></article></div>
     {title === "Videos" && <VideoViewsChart items={items}/>} 
-    <div className="youtube-table-wrap"><table><thead><tr><th>Fecha</th><th>Título</th><th>Vistas</th><th>Likes</th><th>Comentarios</th><th>Duración</th><th></th></tr></thead><tbody>{pageItems.map((item, index) => { const multiplier = medianViews > 0 && item.viewCount !== null ? item.viewCount / medianViews : 0; const rating = performanceLabel(multiplier); const rate = engagement(item); return <tr key={`${item.url}-${index}`} tabIndex={0}><td>{formatDate(item.uploadDate)}</td><td className="video-title-cell"><strong>{item.title}</strong><div className={`row-insight ${rating.className}`} role="tooltip"><b>{rating.icon} {rating.label}</b><span><strong>{multiplier.toFixed(1)}x</strong> la mediana de vistas</span><span><strong>{rate === null ? "—" : `${rate.toFixed(2)}%`}</strong> de engagement</span><small>{number.format((item.likeCount ?? 0) + (item.commentCount ?? 0))} interacciones visibles</small></div></td><td>{item.viewCount === null ? "—" : number.format(item.viewCount)}</td><td>{item.likeCount === null ? "—" : number.format(item.likeCount)}</td><td>{item.commentCount === null ? "—" : number.format(item.commentCount)}</td><td>{formatDuration(item.duration)}</td><td><a href={item.url} target="_blank" rel="noreferrer" aria-label={`Abrir ${item.title} en YouTube`}>↗</a></td></tr>; })}</tbody></table></div>
+    <div className="youtube-table-wrap"><table><thead><tr><>{metricColumns.map(({ key, label }) => <th key={key} scope="col" aria-sort={sort.key === key ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}><button type="button" className="youtube-sort-button" onClick={() => changeSort(key)} aria-label={`Ordenar por ${label}: ${sort.key === key ? (sort.direction === "asc" ? "descendente" : "ascendente") : key === "title" ? "ascendente" : "descendente"}`}>{label} <span aria-hidden="true">{sort.key === key ? (sort.direction === "asc" ? "↑" : "↓") : "↕"}</span></button></th>)}</><th scope="col" aria-label="Abrir en YouTube"></th></tr></thead><tbody>{pageItems.map((item, index) => { const multiplier = medianViews > 0 && item.viewCount !== null ? item.viewCount / medianViews : 0; const rating = performanceLabel(multiplier); const rate = engagement(item); return <tr key={`${item.url}-${index}`} tabIndex={0}><td>{formatDate(item.uploadDate)}</td><td className="video-title-cell"><strong>{item.title}</strong><div className={`row-insight ${rating.className}`} role="tooltip"><b>{rating.icon} {rating.label}</b><span><strong>{multiplier.toFixed(1)}x</strong> la mediana de vistas</span><span><strong>{rate === null ? "—" : `${rate.toFixed(2)}%`}</strong> de engagement</span><small>{number.format((item.likeCount ?? 0) + (item.commentCount ?? 0))} interacciones visibles</small></div></td><td>{item.viewCount === null ? "—" : number.format(item.viewCount)}</td><td>{item.likeCount === null ? "—" : number.format(item.likeCount)}</td><td>{item.commentCount === null ? "—" : number.format(item.commentCount)}</td><td>{formatDuration(item.duration)}</td><td><a href={item.url} target="_blank" rel="noreferrer" aria-label={`Abrir ${item.title} en YouTube`}>↗</a></td></tr>; })}</tbody></table></div>
     {totalPages > 1 && <nav className="youtube-pagination" aria-label={`Paginación de ${title}`}><span>Mostrando {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, items.length)} de {items.length}</span><div><button type="button" onClick={() => setPage((value) => Math.max(1, value - 1))} disabled={currentPage === 1} aria-label={`Página anterior de ${title}`}>← Anterior</button><strong>Página {currentPage} de {totalPages}</strong><button type="button" onClick={() => setPage((value) => Math.min(totalPages, value + 1))} disabled={currentPage === totalPages} aria-label={`Página siguiente de ${title}`}>Siguiente →</button></div></nav>}
     <div className="engagement-top"><div><p className="youtube-kicker">Ranking</p><h3>Top 10 por engagement</h3></div><ol>{topEngagement.map(({ item, value }) => <li key={item.url}><span><strong>{item.title}</strong><small>{item.viewCount === null ? "Sin vistas" : `${number.format(item.viewCount)} vistas`}</small></span><b>{value.toFixed(2)}%</b></li>)}</ol></div>
   </> : <p className="youtube-no-results">No se encontraron publicaciones públicas en esta sección.</p>}</section>;
