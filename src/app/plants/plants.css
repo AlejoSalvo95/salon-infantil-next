@@ -9,3 +9,5 @@
 .plant-metrics .plant-metric-loss span,.plant-metrics .plant-metric-loss strong,.plant-metrics .plant-metric-loss small{color:#b53b2e}
 
 .plant-return-notes{margin:24px max(6vw,30px);color:#637169;font-size:.82rem;line-height:1.6}.plant-return-notes summary{cursor:pointer;font-weight:700;color:var(--ink)}.plant-return-notes summary:focus-visible{outline:2px solid var(--coral);outline-offset:4px}
+
+.plants-error-details{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 20px;width:100%;font-size:.85rem}.plants-error-details dt{font-weight:700}.plants-error-details dd{margin:0;overflow-wrap:anywhere}.plants-recovery button{cursor:pointer}.plants-recovery button:focus-visible{outline:2px solid var(--coral);outline-offset:4px}@media(max-width:520px){.plants-error-details{grid-template-columns:1fr;gap:4px}.plants-error-details dd{margin-bottom:10px}}

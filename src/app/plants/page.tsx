@@ -4,6 +4,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase";
 import { isPlantsSessionValid, PLANTS_COOKIE } from "@/lib/plants-auth";
 import { PlantsDashboard } from "./plants-dashboard";
 import "./plants.css";
+import { PlantsRecovery } from "./plants-recovery";
+import { PlantLoadError, describePlantFailure, redactPlantLog } from "@/lib/plants-diagnostics";
 
 export const metadata: Metadata = {
   title: "Plants · Nube",
@@ -17,47 +19,34 @@ export type PlantEvent = { plantId: string; date: string; value: number };
 async function loadPlantData() {
   const incidentId = crypto.randomUUID();
   const startedAt = Date.now();
-  const retryable = (message: string) => /jwt issued at future|fetch failed|network|timeout|connection|\b50[234]\b/i.test(message);
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const db = createSupabaseAdminClient();
-    const [measurements, water, nutrients] = await Promise.all([
-      db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000),
-      db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000),
-      db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000),
-    ]);
-    const failedQuery = [
-      { query: "gardening_measurements", error: measurements.error },
-      { query: "gardening_water_events", error: water.error },
-      { query: "gardening_nutrient_events", error: nutrients.error },
-    ].find((result) => result.error);
-    const error = failedQuery?.error;
-    if (error && retryable(error.message) && attempt < 4) {
-      console.warn("plants_data_load_retry", {
-        incidentId,
-        query: failedQuery?.query,
-        attempt: attempt + 1,
-        code: error.code,
-        message: error.message,
-        elapsedMs: Date.now() - startedAt,
-      });
-      await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
-      continue;
-    }
-    if (error) {
-      console.error("plants_data_load_failed", {
-        incidentId,
-        query: failedQuery?.query,
-        attempt: attempt + 1,
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        elapsedMs: Date.now() - startedAt,
-        supabaseHost: process.env.SUPABASE_URL ? new URL(process.env.SUPABASE_URL).host : "missing",
-        keyType: process.env.SUPABASE_SECRET_KEY?.startsWith("sb_secret_") ? "secret" : process.env.SUPABASE_SERVICE_ROLE_KEY ? "legacy-service-role" : "missing",
-      });
-      throw new Error(`Plant data query failed [${incidentId}]: ${error.message}`);
-    }
+  const maxAttempts = 3;
+  console.info("plants_data_load_started", { incidentId, occurredAt: new Date().toISOString() });
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let stage = "create_client";
+    try {
+      const db = createSupabaseAdminClient();
+      stage = "database_queries";
+      const runQuery = async <T,>(query: string, run: () => PromiseLike<T>): Promise<T> => {
+        try { return await run(); }
+        catch (cause) { throw Object.assign(new Error(cause instanceof Error ? cause.message : String(cause)), { query, cause }); }
+      };
+      const signal = AbortSignal.timeout(7000);
+      const [measurements, water, nutrients] = await Promise.all([
+        runQuery("gardening_measurements", () => db.from("gardening_measurements").select("import_id,plant_id,measured_at,total_height").order("measured_at").limit(5000).abortSignal(signal)),
+        runQuery("gardening_water_events", () => db.from("gardening_water_events").select("import_id,plant_id,measured_at,amount").order("measured_at").limit(5000).abortSignal(signal)),
+        runQuery("gardening_nutrient_events", () => db.from("gardening_nutrient_events").select("import_id,plant_id,sampled_at,dose").order("sampled_at").limit(5000).abortSignal(signal)),
+      ]);
+      const failures = [
+        { query: "gardening_measurements", result: measurements },
+        { query: "gardening_water_events", result: water },
+        { query: "gardening_nutrient_events", result: nutrients },
+      ].filter(({ result }) => result.error);
+      for (const { query, result } of failures) {
+        console.warn("plants_query_failed", { incidentId, attempt, query, status: result.status, code: result.error?.code, message: redactPlantLog(result.error?.message ?? ""), details: redactPlantLog(result.error?.details ?? ""), hint: redactPlantLog(result.error?.hint ?? "") });
+      }
+      const failed = failures.find(({ result }) => !describePlantFailure({ ...result.error, status: result.status }).retryable) ?? failures[0];
+      if (failed) throw Object.assign(new Error(failed.result.error!.message), { code: failed.result.error!.code, status: failed.result.status, query: failed.query });
+      stage = "transform_data";
     const activeImports = new Set((measurements.data ?? []).map((row) => row.import_id));
     const allMeasurements = (measurements.data ?? []).map((row) => ({ plantId: row.plant_id, date: row.measured_at, totalHeight: row.total_height }));
     const allWaterEvents = (water.data ?? []).filter((row) => activeImports.has(row.import_id)).map((row) => ({ plantId: row.plant_id, date: row.measured_at, value: row.amount }));
@@ -71,11 +60,24 @@ async function loadPlantData() {
       const firstWater = firstWaterByPlant.get(item.plantId);
       return !firstWater || item.date >= firstWater;
     };
+    console.info("plants_data_load_succeeded", { incidentId, attempt, elapsedMs: Date.now() - startedAt, measurements: allMeasurements.length, waterEvents: allWaterEvents.length, nutrientEvents: allNutrientEvents.length });
     return {
       measurements: allMeasurements.filter(onOrAfterFirstWater),
       waterEvents: allWaterEvents.filter(onOrAfterFirstWater),
       nutrientEvents: allNutrientEvents.filter(onOrAfterFirstWater),
     };
+    } catch (error) {
+      const failure = describePlantFailure(error);
+      const diagnostic = {
+        incidentId, occurredAt: new Date().toISOString(), attempts: attempt, elapsedMs: Date.now() - startedAt,
+        category: failure.category, query: error && typeof error === "object" && "query" in error ? String(error.query) : stage,
+        status: failure.status, code: failure.code, retryable: failure.retryable, summary: failure.summary,
+      };
+      const retry = failure.retryable && attempt < maxAttempts;
+      console[retry ? "warn" : "error"](retry ? "plants_data_load_retry" : "plants_data_load_failed", { ...diagnostic, message: redactPlantLog(failure.message), cause: redactPlantLog(failure.cause), deployment: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? "local" });
+      if (!retry) throw new PlantLoadError(diagnostic);
+      await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+    }
   }
   throw new Error("Plant data could not be loaded.");
 }
@@ -91,7 +93,8 @@ export default async function PlantsPage({ searchParams }: { searchParams: Promi
     const data = await loadPlantData();
     return <PlantsDashboard {...data} />;
   } catch (error) {
-    console.error("plants_page_render_failed", error);
+    if (error instanceof PlantLoadError) return <PlantsRecovery diagnostic={error.diagnostic}/>;
+    console.error("plants_page_render_failed", { message: redactPlantLog(error instanceof Error ? error.message : String(error)) });
     throw error;
   }
 }

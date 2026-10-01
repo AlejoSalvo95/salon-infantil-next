@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { PlantsRecovery } from "./plants-recovery";
 
 export default function PlantsError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -12,5 +13,5 @@ export default function PlantsError({ error, reset }: { error: Error & { digest?
     });
   }, [error]);
 
-  return <main className="plants-recovery"><a className="plants-logo" href="/">☁ nube</a><section><span aria-hidden="true">☘</span><p className="plants-kicker">Garden connection</p><h1>Connection<br/><em>paused.</em></h1><p>The plant data service could not be loaded. Try again once; if it persists, check the server logs{error.digest ? ` with reference ${error.digest}` : ""}.</p><button type="button" onClick={reset}>Try again <span>→</span></button></section></main>;
+  return <PlantsRecovery digest={error.digest} onRetry={reset}/>;
 }
