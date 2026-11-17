@@ -12,16 +12,40 @@ const percentage = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 function timestamp(date: string) { return new Date(`${date}T12:00:00`).getTime(); }
 function uniqueEventDates(events: PlantEvent[]) { return [...new Set(events.map((event) => event.date))]; }
 
+
+// Treat flows between observations as included in the ending balance.
+// Chain returns instead of subtracting lifetime contributions from the denominator.
+function contributionAdjustedDrawdown(measurements: PlantMeasurement[], water: PlantEvent[]) {
+  if (!measurements.length) return null;
+  const ordered = [...measurements].sort((a, b) => a.date.localeCompare(b.date));
+  if (ordered[0].totalHeight <= 0) return null;
+  const flows = [...water].sort((a, b) => a.date.localeCompare(b.date));
+  let flowIndex = 0;
+  while (flowIndex < flows.length && flows[flowIndex].date <= ordered[0].date) flowIndex++;
+  let index = 100, peak = 100, peakDate = ordered[0].date;
+  for (let i = 1; i < ordered.length; i++) {
+    let contributions = 0;
+    while (flowIndex < flows.length && flows[flowIndex].date <= ordered[i].date) {
+      contributions += flows[flowIndex++].value;
+    }
+    const previous = ordered[i - 1].totalHeight;
+    const adjustedBalance = ordered[i].totalHeight - contributions;
+    if (previous <= 0 || adjustedBalance < 0) return null;
+    index *= adjustedBalance / previous;
+    if (!Number.isFinite(index)) return null;
+    if (index > peak) { peak = index; peakDate = ordered[i].date; }
+  }
+  return { percent: Math.max(0, (1 - index / peak) * 100), peakDate };
+}
+
 export function PlantsDashboard({ measurements, waterEvents, nutrientEvents }: Props) {
   const plantId = measurements[0]?.plantId ?? "";
   const selected = useMemo(() => measurements.filter((item) => item.plantId === plantId), [measurements, plantId]);
   const water = useMemo(() => waterEvents.filter((item) => item.plantId === plantId), [waterEvents, plantId]);
   const nutrients = useMemo(() => nutrientEvents.filter((item) => item.plantId === plantId), [nutrientEvents, plantId]);
   const latest = selected.at(-1);
-  const peak = selected.reduce<PlantMeasurement | undefined>((highest, item) => !highest || item.totalHeight > highest.totalHeight ? item : highest, undefined);
-  const dropFromPeak = latest && peak && peak.totalHeight !== 0
-    ? Math.max(0, (peak.totalHeight - latest.totalHeight) / Math.abs(peak.totalHeight) * 100)
-    : 0;
+  const drawdown = contributionAdjustedDrawdown(selected, water);
+  const dropFromPeak = drawdown?.percent ?? 0;
   const netContributions = water.filter((event) => latest && event.date <= latest.date).reduce((total, event) => total + event.value, 0);
   const simpleReturn = latest && netContributions > 0 ? (latest.totalHeight - netContributions) / netContributions * 100 : null;
   const formatReturn = (value: number | null) => value === null ? "—" : `${value >= 0 ? "+" : ""}${percentage.format(value)}%`;
@@ -38,7 +62,7 @@ export function PlantsDashboard({ measurements, waterEvents, nutrientEvents }: P
     : 0;
 
   return <main className="plants-page"><header className="plants-header"><a className="plants-logo" href="/">☁ nube</a><PrivateAreaNav current="plants"/></header><section className="plants-intro"><div><p className="plants-kicker">Live garden data</p><h1>Growth<br/><em>journal.</em></h1></div></section>{selected.length ? <><section className="plant-metrics" aria-label="Plant summary"><article><span>Latest total height</span><strong>{compact.format(latest!.totalHeight)}</strong><small>recorded on {dateFormat.format(new Date(`${latest!.date}T12:00`))}</small></article>
-{dropFromPeak > 5 && <article className="plant-metric-loss"><span>Drop from peak</span><strong>{percentage.format(dropFromPeak)}%</strong><small>from {compact.format(peak!.totalHeight)} on {dateFormat.format(new Date(`${peak!.date}T12:00`))}</small></article>}
+{dropFromPeak > 3 && <article className="plant-metric-loss"><span>Drop from peak</span><strong>{percentage.format(dropFromPeak)}%</strong><small>watering-adjusted · peak on {dateFormat.format(new Date(`${drawdown!.peakDate}T12:00`))}</small></article>}
 <article><span>Simple return</span><strong>{formatReturn(simpleReturn)}</strong><small>total gain over net contributions</small></article>
 <article><span>Cumulative change</span><strong>{change >= 0 ? "+" : ""}{compact.format(change)}</strong><small>on days without watering</small></article>
 <article><span>Average monthly growth</span><strong>{averageMonthlyGrowth >= 0 ? "+" : ""}{compact.format(averageMonthlyGrowth)}</strong><small>average across {monthlyGrowth.size} observed months</small></article>
